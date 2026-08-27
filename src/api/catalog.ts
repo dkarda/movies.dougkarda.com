@@ -156,3 +156,95 @@ export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) 
   }
   return sorted
 }
+
+export const DAILY_SUGGESTION_COUNT = 10
+export const DAILY_SUGGESTION_MIN_SCORE = 7
+const DAILY_SUGGESTION_KEY = 'movies-daily-suggestions'
+
+export function localDateKey(now = new Date()) {
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function hashString(value: string) {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffleWithSeed<T>(items: T[], seed: string) {
+  const rng = mulberry32(hashString(seed))
+  const shuffled = [...items]
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
+function readStoredIds(today: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(DAILY_SUGGESTION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { date?: string; ids?: string[] }
+    if (parsed.date !== today || !Array.isArray(parsed.ids)) return null
+    return parsed.ids.filter((id) => typeof id === 'string')
+  } catch {
+    return null
+  }
+}
+
+function writeStoredIds(today: string, ids: string[]) {
+  try {
+    localStorage.setItem(DAILY_SUGGESTION_KEY, JSON.stringify({ date: today, ids }))
+  } catch {
+    // Ignore quota / private-mode failures; date-seeded shuffle still holds for the day.
+  }
+}
+
+export function pickDailySuggestions(
+  movies: PersonalMovie[],
+  count = DAILY_SUGGESTION_COUNT,
+): PersonalMovie[] {
+  const pool = movies.filter(
+    (movie) =>
+      typeof movie.score === 'number' &&
+      movie.score >= DAILY_SUGGESTION_MIN_SCORE &&
+      typeof movie.imdbID === 'string',
+  )
+  if (pool.length === 0) return []
+
+  const today = localDateKey()
+  const byId = new Map(pool.map((movie) => [movie.imdbID as string, movie]))
+  const stored = readStoredIds(today)
+    ?.map((id) => byId.get(id))
+    .filter((movie): movie is PersonalMovie => Boolean(movie))
+
+  if (stored && stored.length > 0) {
+    if (stored.length >= Math.min(count, pool.length)) {
+      return stored.slice(0, count)
+    }
+  }
+
+  const picked = shuffleWithSeed(pool, today).slice(0, Math.min(count, pool.length))
+  writeStoredIds(
+    today,
+    picked.map((movie) => movie.imdbID as string),
+  )
+  return picked
+}
