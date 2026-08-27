@@ -38,10 +38,10 @@ export function HomePage() {
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Suggestions of the day</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Suggestions of the Day!</h1>
+        <h2 className="text-2xl font-semibold tracking-tight">{todayLabel}</h2>
         <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-          Ten films from your catalog scored {DAILY_SUGGESTION_MIN_SCORE} or higher. This
-          lineup stays put until tomorrow ({todayLabel}).
+          Ten random films I've scored {DAILY_SUGGESTION_MIN_SCORE} or higher. Come back tomorrow for a new lineup.
         </p>
       </div>
       {catalogQuery.isPending ? <Spinner /> : null}
