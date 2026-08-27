@@ -49,7 +49,16 @@ export function MovieCard({ movie }: Props) {
         <h3 className="line-clamp-2 text-sm font-medium text-white">{movie.title}</h3>
         <p className="text-xs text-zinc-400">
           {year || '—'}
-          {movie.rating != null ? ` · Your ${movie.rating}/10` : ''}
+        </p>
+        <p className="text-xs text-zinc-400">
+          {[
+            movie.rating != null ? `DK score ${movie.rating}/10` : null,
+            Number.isFinite(movie.vote_average)
+              ? `TMDB score ${movie.vote_average.toFixed(1)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' ··· ')}
         </p>
       </div>
     </Link>
