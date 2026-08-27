@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { posterUrl, yearFromDate, type Movie } from '../api/tmdb'
 
 type Props = {
@@ -6,6 +6,7 @@ type Props = {
 }
 
 export function MovieCard({ movie }: Props) {
+  const location = useLocation()
   const poster = posterUrl(movie.poster_path, 'w342')
   const year = yearFromDate(movie.release_date)
   const owned = movie.own === 'y'
@@ -13,6 +14,7 @@ export function MovieCard({ movie }: Props) {
   return (
     <Link
       to={`/movie/${movie.id}`}
+      state={{ from: `${location.pathname}${location.search}` }}
       className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition hover:border-amber-300/50 hover:shadow-lg hover:shadow-amber-300/5"
     >
       <div className="relative aspect-[2/3] bg-zinc-800">

@@ -1,13 +1,35 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { getMovie, posterUrl, youtubeTrailer, yearFromDate } from '../api/tmdb'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
 import { hasPublicAuth } from '../lib/config'
 
+const BACK_LABELS: Record<string, string> = {
+  '/': 'Home',
+  '/browse': 'Browse',
+  '/ratings': 'Ratings',
+  '/rankings': 'Rankings',
+  '/stats': 'Stats',
+  '/watchlist': 'Watchlist',
+}
+
+function backLink(from: unknown) {
+  const path = typeof from === 'string' ? from : ''
+  const pathname = path.split('?')[0]
+  if (!pathname || pathname.startsWith('/movie/')) {
+    return { to: '/', label: 'Home' }
+  }
+  return { to: path, label: BACK_LABELS[pathname] ?? 'Back' }
+}
+
 export function MoviePage() {
   const { id } = useParams()
+  const { state } = useLocation()
   const movieId = Number(id)
+  const back = backLink(
+    state && typeof state === 'object' && 'from' in state ? state.from : undefined,
+  )
 
   const movieQuery = useQuery({
     queryKey: ['movie', movieId],
@@ -53,8 +75,8 @@ export function MoviePage() {
       </div>
       <div className="space-y-4">
         <p>
-          <Link to="/browse" className="text-sm text-zinc-400 hover:text-amber-300">
-            ← Browse
+          <Link to={back.to} className="text-sm text-zinc-400 hover:text-amber-300">
+            ← {back.label}
           </Link>
         </p>
         <h1 className="text-3xl font-semibold tracking-tight">
