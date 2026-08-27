@@ -3,7 +3,6 @@ import {
   catalogFilterOptions,
   EMPTY_CATALOG_FILTERS,
   filterCatalog,
-  PERSONAL_MOVIE_LIMIT,
   type CatalogFilters,
 } from '../api/catalog'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
@@ -107,9 +106,9 @@ export function HomePage() {
               }
               className={selectClass}
             >
-              <option value="title">Title A–Z</option>
-              <option value="score-desc">Score high–low</option>
-              <option value="score-asc">Score low–high</option>
+              <option value="title">Title A-Z</option>
+              <option value="score-desc">Score high-low</option>
+              <option value="score-asc">Score low-high</option>
               <option value="year-desc">Year newest</option>
               <option value="year-asc">Year oldest</option>
             </select>
