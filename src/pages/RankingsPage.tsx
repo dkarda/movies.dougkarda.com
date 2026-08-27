@@ -1,19 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
-import { getGenres, getRatedMovies, type RatedMovie } from '../api/tmdb'
-import { MovieGrid } from '../components/MovieCard'
+import { catalogGenres, PERSONAL_MOVIE_LIMIT, type PersonalMovie } from '../api/catalog'
+import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
-import { hasAccountAuth } from '../lib/config'
+import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
+import { hasPublicAuth } from '../lib/config'
 
-function groupByGenre(
-  movies: RatedMovie[],
-  genres: { id: number; name: string }[],
-) {
-  const names = new Map(genres.map((g) => [g.id, g.name]))
-  const groups = new Map<string, RatedMovie[]>()
+function groupByGenre(movies: PersonalMovie[]) {
+  const groups = new Map<string, PersonalMovie[]>()
   for (const movie of movies) {
-    const ids = movie.genre_ids?.length ? movie.genre_ids : [0]
-    for (const id of ids) {
-      const name = names.get(id) ?? 'Uncategorized'
+    for (const name of catalogGenres(movie)) {
       const list = groups.get(name) ?? []
       list.push(movie)
       groups.set(name, list)
@@ -22,49 +16,44 @@ function groupByGenre(
   return [...groups.entries()]
     .map(([name, list]) => ({
       name,
-      movies: [...list].sort((a, b) => b.rating - a.rating || b.vote_average - a.vote_average),
+      movies: [...list].sort(
+        (a, b) =>
+          (b.score ?? 0) - (a.score ?? 0) || (a.Title ?? '').localeCompare(b.Title ?? ''),
+      ),
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export function RankingsPage() {
-  const enabled = hasAccountAuth()
-  const ratedQuery = useQuery({
-    queryKey: ['rated-movies'],
-    queryFn: getRatedMovies,
-    enabled,
-  })
-  const genresQuery = useQuery({
-    queryKey: ['genres'],
-    queryFn: getGenres,
-    enabled,
-  })
+  const enabled = hasPublicAuth()
+  const catalogQuery = usePersonalCatalog(enabled)
 
   if (!enabled) {
     return (
-      <EmptyState title="Connect your TMDB account">
-        <p>Genre rankings use your TMDB ratings. Set account id and access token in .env.</p>
+      <EmptyState title="TMDB key required">
+        <p>Genre rankings need TMDB credentials to load posters.</p>
       </EmptyState>
     )
   }
 
-  if (ratedQuery.isPending || genresQuery.isPending) return <Spinner />
-  if (ratedQuery.isError) return <ErrorMessage error={ratedQuery.error} />
-  if (genresQuery.isError) return <ErrorMessage error={genresQuery.error} />
+  if (catalogQuery.isPending) return <Spinner />
+  if (catalogQuery.isError) return <ErrorMessage error={catalogQuery.error} />
 
-  const groups = groupByGenre(ratedQuery.data ?? [], genresQuery.data?.genres ?? [])
+  const groups = groupByGenre(catalogQuery.data ?? [])
 
   return (
     <section className="space-y-10">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Genre rankings</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Your TMDB scores, grouped by genre. A film can appear in more than one list.
+          Your catalog scores, grouped by genre from the JSON file. A film can appear in
+          more than one list. Each section loads posters as it comes into view. Capped at{' '}
+          {PERSONAL_MOVIE_LIMIT} titles while testing.
         </p>
       </div>
       {groups.length === 0 ? (
         <EmptyState title="No ranked films yet">
-          <p>Rate movies on TMDB to populate these lists.</p>
+          <p>No catalog titles with scores were found.</p>
         </EmptyState>
       ) : (
         groups.map((group) => (
@@ -75,7 +64,7 @@ export function RankingsPage() {
                 ({group.movies.length})
               </span>
             </h2>
-            <MovieGrid movies={group.movies} />
+            <LazyMovieGrid entries={group.movies} rootMargin="120px" />
           </div>
         ))
       )}

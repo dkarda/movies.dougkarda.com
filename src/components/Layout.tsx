@@ -2,10 +2,10 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const links = [
   { to: '/', label: 'Home' },
-  { to: '/browse', label: 'Browse' },
   { to: '/rankings', label: 'Rankings' },
   { to: '/stats', label: 'Stats' },
   { to: '/watchlist', label: 'Watchlist' },
+  { to: '/browse', label: 'Browse' },
 ]
 
 export function Layout() {
@@ -15,7 +15,7 @@ export function Layout() {
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <NavLink
             to="/"
-            className="text-lg font-semibold uppercase tracking-tight text-amber-300"
+            className="text-lg font-semibold tracking-tight text-amber-300"
           >
             TheDoug Movies
           </NavLink>

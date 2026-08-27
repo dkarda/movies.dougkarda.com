@@ -1,4 +1,5 @@
 import { hasAccountAuth, tmdbEnv } from '../lib/config'
+import { TMDB_FIND_CONCURRENCY } from './catalog'
 
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
@@ -19,10 +20,6 @@ export type Movie = {
   popularity?: number
 }
 
-export type RatedMovie = Movie & {
-  rating: number
-}
-
 export type Genre = {
   id: number
   name: string
@@ -36,6 +33,7 @@ export type Paginated<T> = {
 }
 
 export type MovieDetails = Movie & {
+  imdb_id?: string | null
   runtime: number | null
   tagline: string
   genres: Genre[]
@@ -102,6 +100,24 @@ async function tmdbFetch<T>(
   return (await res.json()) as T
 }
 
+let activeFinds = 0
+const findWaiters: Array<() => void> = []
+
+async function withFindSlot<T>(fn: () => Promise<T>): Promise<T> {
+  while (activeFinds >= TMDB_FIND_CONCURRENCY) {
+    await new Promise<void>((resolve) => {
+      findWaiters.push(resolve)
+    })
+  }
+  activeFinds += 1
+  try {
+    return await fn()
+  } finally {
+    activeFinds -= 1
+    findWaiters.shift()?.()
+  }
+}
+
 async function fetchAllPages<T>(
   path: string,
   params: Record<string, string | number | undefined> = {},
@@ -154,14 +170,13 @@ export function getGenres() {
   })
 }
 
-export async function getRatedMovies() {
-  if (!hasAccountAuth()) {
-    throw new Error('Set VITE_TMDB_ACCOUNT_ID plus an API key or access token.')
-  }
-  const { accountId } = tmdbEnv()
-  return fetchAllPages<RatedMovie>(`/account/${accountId}/rated/movies`, {
-    sort_by: 'created_at.desc',
-    language: 'en-US',
+export async function findMovieByImdbId(imdbId: string) {
+  return withFindSlot(async () => {
+    const data = await tmdbFetch<{ movie_results: Movie[] }>(`/find/${imdbId}`, {
+      external_source: 'imdb_id',
+      language: 'en-US',
+    })
+    return data.movie_results[0] ?? null
   })
 }
 

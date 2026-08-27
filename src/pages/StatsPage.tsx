@@ -1,53 +1,31 @@
-import { useQuery } from '@tanstack/react-query'
-import { getGenres, getRatedMovies } from '../api/tmdb'
+import { catalogGenres, PERSONAL_MOVIE_LIMIT } from '../api/catalog'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
-import { hasAccountAuth } from '../lib/config'
+import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
 
 export function StatsPage() {
-  const enabled = hasAccountAuth()
-  const ratedQuery = useQuery({
-    queryKey: ['rated-movies'],
-    queryFn: getRatedMovies,
-    enabled,
-  })
-  const genresQuery = useQuery({
-    queryKey: ['genres'],
-    queryFn: getGenres,
-    enabled,
-  })
+  const catalogQuery = usePersonalCatalog(true)
 
-  if (!enabled) {
-    return (
-      <EmptyState title="Connect your TMDB account">
-        <p>Stats are computed from your cached TMDB ratings.</p>
-      </EmptyState>
-    )
-  }
+  if (catalogQuery.isPending) return <Spinner />
+  if (catalogQuery.isError) return <ErrorMessage error={catalogQuery.error} />
 
-  if (ratedQuery.isPending || genresQuery.isPending) return <Spinner />
-  if (ratedQuery.isError) return <ErrorMessage error={ratedQuery.error} />
-  if (genresQuery.isError) return <ErrorMessage error={genresQuery.error} />
-
-  const movies = ratedQuery.data ?? []
+  const movies = catalogQuery.data ?? []
   if (movies.length === 0) {
     return (
       <EmptyState title="No stats yet">
-        <p>Rate some films on TMDB and come back.</p>
+        <p>No catalog titles with scores were found.</p>
       </EmptyState>
     )
   }
 
-  const avg = movies.reduce((sum, m) => sum + m.rating, 0) / movies.length
+  const avg = movies.reduce((sum, movie) => sum + (movie.score ?? 0), 0) / movies.length
   const histogram = Array.from({ length: 10 }, (_, i) => {
     const score = i + 1
-    return { score, count: movies.filter((m) => Math.round(m.rating) === score).length }
+    return { score, count: movies.filter((movie) => Math.round(movie.score ?? 0) === score).length }
   })
-  const maxBar = Math.max(...histogram.map((h) => h.count), 1)
-  const genreNames = new Map((genresQuery.data?.genres ?? []).map((g) => [g.id, g.name]))
+  const maxBar = Math.max(...histogram.map((row) => row.count), 1)
   const genreCounts = new Map<string, number>()
   for (const movie of movies) {
-    for (const id of movie.genre_ids ?? []) {
-      const name = genreNames.get(id) ?? 'Other'
+    for (const name of catalogGenres(movie)) {
       genreCounts.set(name, (genreCounts.get(name) ?? 0) + 1)
     }
   }
@@ -55,7 +33,13 @@ export function StatsPage() {
 
   return (
     <section className="space-y-8">
-      <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Computed from your catalog JSON (no TMDB lookups). Capped at {PERSONAL_MOVIE_LIMIT}{' '}
+          titles while testing.
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Rated" value={String(movies.length)} />
         <StatCard label="Average score" value={avg.toFixed(1)} />

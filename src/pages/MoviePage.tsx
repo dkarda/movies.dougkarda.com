@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
-import { getMovie, getRatedMovies, posterUrl, youtubeTrailer, yearFromDate } from '../api/tmdb'
+import { getMovie, posterUrl, youtubeTrailer, yearFromDate } from '../api/tmdb'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
-import { hasAccountAuth, hasPublicAuth } from '../lib/config'
+import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
+import { hasPublicAuth } from '../lib/config'
 
 export function MoviePage() {
   const { id } = useParams()
@@ -14,11 +15,7 @@ export function MoviePage() {
     enabled: hasPublicAuth() && Number.isFinite(movieId) && movieId > 0,
   })
 
-  const ratedQuery = useQuery({
-    queryKey: ['rated-movies'],
-    queryFn: getRatedMovies,
-    enabled: hasAccountAuth(),
-  })
+  const catalogQuery = usePersonalCatalog(hasPublicAuth())
 
   if (!hasPublicAuth()) {
     return (
@@ -36,7 +33,7 @@ export function MoviePage() {
   if (movieQuery.isError) return <ErrorMessage error={movieQuery.error} />
 
   const movie = movieQuery.data
-  const yours = ratedQuery.data?.find((m) => m.id === movie.id)
+  const yours = catalogQuery.data?.find((entry) => entry.imdbID === movie.imdb_id)
   const poster = posterUrl(movie.poster_path, 'w500')
   const trailer = youtubeTrailer(movie)
   const director = movie.credits?.crew.find((c) => c.job === 'Director')
@@ -68,7 +65,7 @@ export function MoviePage() {
         <dl className="flex flex-wrap gap-3 text-sm">
           {yours ? (
             <div className="rounded-full bg-amber-300 px-3 py-1 font-medium text-zinc-950">
-              Your rating {yours.rating}/10
+              Your rating {yours.score}/10
             </div>
           ) : null}
           <div className="rounded-full border border-zinc-700 px-3 py-1 text-zinc-300">

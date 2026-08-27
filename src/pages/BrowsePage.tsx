@@ -54,7 +54,7 @@ export function BrowsePage() {
 
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Browse</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Browse The Movie Database</h1>
       <form
         className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(event) => {
