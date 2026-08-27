@@ -3,6 +3,7 @@ import { Layout } from './components/Layout'
 import { BrowsePage } from './pages/BrowsePage'
 import { HomePage } from './pages/HomePage'
 import { MoviePage } from './pages/MoviePage'
+import { RatingsPage } from './pages/RatingsPage'
 import { RankingsPage } from './pages/RankingsPage'
 import { StatsPage } from './pages/StatsPage'
 import { WatchlistPage } from './pages/WatchlistPage'
@@ -14,6 +15,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="browse" element={<BrowsePage />} />
+          <Route path="ratings" element={<RatingsPage />} />
           <Route path="rankings" element={<RankingsPage />} />
           <Route path="stats" element={<StatsPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
