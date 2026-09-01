@@ -53,9 +53,7 @@ export function LazyMovieGrid({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const listKey = [
     listName ?? '',
-    String(entries.length),
     ...entries.slice(0, MOVIE_PAGE_SIZE).map((entry) => entry.imdbID ?? ''),
-    entries.at(-1)?.imdbID ?? '',
   ].join(':')
 
   useEffect(() => {

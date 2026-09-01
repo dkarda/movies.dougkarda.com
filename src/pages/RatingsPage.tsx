@@ -8,15 +8,18 @@ import {
   normalizeTitle,
   sortCatalog,
   type CatalogFilters,
+  type PersonalMovie,
 } from '../api/catalog'
-import { personMovieTitleKeys } from '../api/tmdb'
+import { getGenres, personMovieTitleKeys } from '../api/tmdb'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
+import { useTmdbGenreMatchIds } from '../hooks/useTmdbGenreMatchIds'
 import { hasPublicAuth } from '../lib/config'
 
 const selectClass =
   'rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white'
+const EMPTY_MOVIES: PersonalMovie[] = []
 
 export function RatingsPage() {
   const enabled = hasPublicAuth()
@@ -31,28 +34,52 @@ export function RatingsPage() {
     return () => window.clearTimeout(timer)
   }, [filters.query])
 
-  const movies = catalogQuery.data ?? []
+  const movies = catalogQuery.data ?? EMPTY_MOVIES
   const options = useMemo(() => catalogFilterOptions(movies), [movies])
+  const genresQuery = useQuery({
+    queryKey: ['genres'],
+    queryFn: getGenres,
+    enabled,
+  })
   const personQuery = useQuery({
     queryKey: ['tmdb-person-titles', debouncedQuery.toLowerCase()],
     queryFn: () => personMovieTitleKeys(debouncedQuery),
     enabled: enabled && debouncedQuery.length >= 2,
     staleTime: 30 * 60 * 1000,
   })
+  const constrained = useMemo(
+    () =>
+      filterCatalog(movies, {
+        ...filters,
+        query: '',
+        genre: '',
+      }),
+    [
+      movies,
+      filters.collection,
+      filters.own,
+      filters.sort,
+      filters.toplist,
+      filters.year,
+    ],
+  )
+  const genreScan = useTmdbGenreMatchIds(constrained, filters.genre)
 
   const visible = useMemo(() => {
-    const constrained = filterCatalog(movies, { ...filters, query: '' })
+    const byGenre = filters.genre
+      ? constrained.filter((movie) => genreScan.matchIds.has(movie.imdbID ?? ''))
+      : constrained
     const needle = filters.query.trim()
-    if (!needle) return constrained
+    if (!needle) return byGenre
 
     const personTitles = personQuery.data
-    const hits = constrained.filter((movie) => {
+    const hits = byGenre.filter((movie) => {
       if (matchesTextQuery(movie, needle)) return true
       const titleKey = normalizeTitle(movie.Title ?? '')
       return Boolean(titleKey && personTitles?.has(titleKey))
     })
     return sortCatalog(hits, filters)
-  }, [movies, filters, personQuery.data])
+  }, [constrained, filters, genreScan.matchIds, personQuery.data])
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_CATALOG_FILTERS)
 
   if (!enabled) {
@@ -95,7 +122,10 @@ export function RatingsPage() {
             label="Genre"
             value={filters.genre}
             onChange={(genre) => setFilters((current) => ({ ...current, genre }))}
-            options={options.genres.map((value) => ({ value, label: value }))}
+            options={(genresQuery.data?.genres ?? []).map((genre) => ({
+              value: String(genre.id),
+              label: genre.name,
+            }))}
           />
           <FilterSelect
             label="Collection"
@@ -146,6 +176,9 @@ export function RatingsPage() {
             </button>
             <p className="text-sm text-zinc-400">
               Showing {visible.length} of {movies.length}
+              {genreScan.scanning
+                ? ` · matching genre ${genreScan.scanned}/${genreScan.total}`
+                : ''}
             </p>
           </div>
         </form>
@@ -158,7 +191,10 @@ export function RatingsPage() {
           <p>Could not find scored titles with IMDb IDs in the catalog.</p>
         </EmptyState>
       ) : null}
-      {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 ? (
+      {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 && genreScan.scanning ? (
+        <Spinner />
+      ) : null}
+      {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 && !genreScan.scanning ? (
         <EmptyState title="No matches">
           <p>Nothing in this batch fits those filters. Clear them or pick another value.</p>
         </EmptyState>
