@@ -82,7 +82,10 @@ export function RatingsPage() {
             label="Top list"
             value={filters.toplist}
             onChange={(toplist) => setFilters((current) => ({ ...current, toplist }))}
-            options={options.toplists.map((value) => ({ value, label: value }))}
+            options={options.toplists.map((list) => ({
+              value: list.name,
+              label: `Top ${list.count} ${list.name}`,
+            }))}
           />
           <FilterSelect
             label="Owned"
@@ -97,15 +100,19 @@ export function RatingsPage() {
           <label className="flex flex-col gap-1 text-xs text-zinc-400">
             Sort
             <select
-              value={filters.sort}
+              value={filters.toplist ? 'list-rank' : filters.sort}
+              disabled={Boolean(filters.toplist)}
               onChange={(event) =>
                 setFilters((current) => ({
                   ...current,
                   sort: event.target.value as CatalogFilters['sort'],
                 }))
               }
-              className={selectClass}
+              className={`${selectClass} disabled:opacity-50`}
             >
+              {filters.toplist ? (
+                <option value="list-rank">List rank high–low</option>
+              ) : null}
               <option value="title">Title A-Z</option>
               <option value="score-desc">Score high-low</option>
               <option value="score-asc">Score low-high</option>
@@ -142,14 +149,18 @@ export function RatingsPage() {
         </EmptyState>
       ) : null}
       {visible.length > 0 ? (
-        <LazyMovieGrid key={listSignature(visible, filters)} entries={visible} />
+        <LazyMovieGrid
+          key={listSignature(visible, filters)}
+          entries={visible}
+          listName={filters.toplist || undefined}
+        />
       ) : null}
     </section>
   )
 }
 
 function listSignature(movies: { imdbID?: string }[], filters: CatalogFilters) {
-  return `${filters.sort}:${movies.length}:${movies[0]?.imdbID ?? ''}:${movies.at(-1)?.imdbID ?? ''}`
+  return `${filters.sort}:${filters.toplist}:${movies.length}:${movies[0]?.imdbID ?? ''}:${movies.at(-1)?.imdbID ?? ''}`
 }
 
 function FilterSelect({

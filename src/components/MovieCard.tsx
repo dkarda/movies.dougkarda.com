@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { posterUrl, yearFromDate, type Movie } from '../api/tmdb'
 
 type Props = {
-  movie: Movie & { rating?: number; own?: string }
+  movie: Movie & { rating?: number; own?: string; listRank?: number }
 }
 
 export function MovieCard({ movie }: Props) {
@@ -31,6 +31,17 @@ export function MovieCard({ movie }: Props) {
             No poster
           </div>
         )}
+        {movie.listRank != null ? (
+          <span
+            className="absolute left-2 top-2 rounded-lg bg-white px-3 py-1 text-2xl font-bold leading-none tabular-nums text-zinc-950"
+            style={{
+              filter: 'drop-shadow(0 2px 2px var(--tw-shadow-color, rgba(0,0,0,0.85)))',
+            }}
+            title={`List rank ${movie.listRank}`}
+          >
+            {movie.listRank}
+          </span>
+        ) : null}
         {owned ? (
           <span
             className="absolute right-2 top-2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
@@ -67,7 +78,11 @@ export function MovieCard({ movie }: Props) {
   )
 }
 
-export function MovieGrid({ movies }: { movies: Array<Movie & { rating?: number; own?: string }> }) {
+export function MovieGrid({
+  movies,
+}: {
+  movies: Array<Movie & { rating?: number; own?: string; listRank?: number }>
+}) {
   if (movies.length === 0) {
     return <p className="text-sm text-zinc-400">No movies to show.</p>
   }

@@ -65,6 +65,11 @@ export function catalogYear(movie: PersonalMovie): string {
   return match?.[0] ?? ''
 }
 
+export function listRankFor(movie: PersonalMovie, listName: string) {
+  const rank = movie.toplists?.find((item) => item.listName === listName)?.listRank
+  return typeof rank === 'number' ? rank : undefined
+}
+
 export type CatalogFilters = {
   query: string
   genre: string
@@ -93,7 +98,7 @@ export function catalogFilterOptions(movies: PersonalMovie[]) {
   const genres = new Set<string>()
   const years = new Set<string>()
   const collections = new Set<string>()
-  const toplists = new Set<string>()
+  const toplistCounts = new Map<string, number>()
   const owns = new Set<string>()
 
   for (const movie of movies) {
@@ -105,7 +110,9 @@ export function catalogFilterOptions(movies: PersonalMovie[]) {
       if (item.collection) collections.add(item.collection)
     }
     for (const item of movie.toplists ?? []) {
-      if (item.listName) toplists.add(item.listName)
+      if (item.listName && item.listName.toLowerCase() !== 'default') {
+        toplistCounts.set(item.listName, (toplistCounts.get(item.listName) ?? 0) + 1)
+      }
     }
   }
 
@@ -113,7 +120,9 @@ export function catalogFilterOptions(movies: PersonalMovie[]) {
     genres: uniqueSorted(genres),
     years: [...years].sort((a, b) => Number(b) - Number(a)),
     collections: uniqueSorted(collections),
-    toplists: uniqueSorted(toplists),
+    toplists: [...toplistCounts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count })),
     owns: uniqueSorted(owns),
   }
 }
@@ -143,7 +152,13 @@ export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) 
   })
 
   const sorted = [...filtered]
-  if (filters.sort === 'score-desc') {
+  if (filters.toplist) {
+    sorted.sort((a, b) => {
+      const rankA = listRankFor(a, filters.toplist) ?? -Infinity
+      const rankB = listRankFor(b, filters.toplist) ?? -Infinity
+      return rankB - rankA || (a.Title ?? '').localeCompare(b.Title ?? '')
+    })
+  } else if (filters.sort === 'score-desc') {
     sorted.sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || (a.Title ?? '').localeCompare(b.Title ?? ''))
   } else if (filters.sort === 'score-asc') {
     sorted.sort((a, b) => (a.score ?? 0) - (b.score ?? 0) || (a.Title ?? '').localeCompare(b.Title ?? ''))

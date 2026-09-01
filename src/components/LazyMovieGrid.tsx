@@ -39,14 +39,16 @@ function useInViewOnce(rootMargin = '800px') {
 export function LazyMovieGrid({
   entries,
   rootMargin = '800px',
+  listName,
 }: {
   entries: PersonalMovie[]
   rootMargin?: string
+  listName?: string
 }) {
   const { ref, inView } = useInViewOnce(rootMargin)
   const [shown, setShown] = useState(MOVIE_PAGE_SIZE)
   const slice = inView ? entries.slice(0, shown) : []
-  const rows = useHydratedMovies(slice, inView)
+  const rows = useHydratedMovies(slice, inView, listName)
   const hasMore = shown < entries.length
   const sentinelRef = useRef<HTMLDivElement>(null)
   const listKey = `${entries.length}:${entries[0]?.imdbID ?? ''}:${entries.at(-1)?.imdbID ?? ''}`
