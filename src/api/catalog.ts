@@ -44,10 +44,10 @@ export function pickTestCatalogMovies(catalog: PersonalMovie[]): PersonalMovie[]
   return catalog
     .filter(
       (movie) =>
+        typeof movie.Title === 'string' &&
+        movie.Title.trim().length > 0 &&
         typeof movie.imdbID === 'string' &&
-        movie.imdbID.startsWith('tt') &&
-        typeof movie.score === 'number' &&
-        movie.score > 0,
+        movie.imdbID.startsWith('tt'),
     )
     .slice(0, PERSONAL_MOVIE_LIMIT)
 }
@@ -63,6 +63,11 @@ export function catalogGenres(movie: PersonalMovie): string[] {
 export function catalogYear(movie: PersonalMovie): string {
   const match = movie.Year?.match(/\d{4}/)
   return match?.[0] ?? ''
+}
+
+export function formatPersonalScore(score: number | null | undefined) {
+  if (typeof score !== 'number' || score === 0) return 'TBD'
+  return `${score}/10`
 }
 
 export function normalizeTitle(title: string) {

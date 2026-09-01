@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { formatPersonalScore } from '../api/catalog'
 import { posterUrl, yearFromDate, type Movie } from '../api/tmdb'
 
 type Props = {
@@ -65,7 +66,7 @@ export function MovieCard({ movie }: Props) {
         </p>
         <p className="text-xs text-zinc-400">
           {[
-            movie.rating != null ? `DK score ${movie.rating}/10` : null,
+            movie.rating != null ? `DK score ${formatPersonalScore(movie.rating)}` : null,
             Number.isFinite(movie.vote_average)
               ? `TMDB score ${movie.vote_average.toFixed(1)}`
               : null,

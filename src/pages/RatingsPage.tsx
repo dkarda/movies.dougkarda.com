@@ -187,8 +187,8 @@ export function RatingsPage() {
       {catalogQuery.isPending ? <Spinner /> : null}
       {catalogQuery.isError ? <ErrorMessage error={catalogQuery.error} /> : null}
       {catalogQuery.isSuccess && movies.length === 0 ? (
-        <EmptyState title="No ratings yet">
-          <p>Could not find scored titles with IMDb IDs in the catalog.</p>
+        <EmptyState title="No titles yet">
+          <p>Could not find catalog entries with a title and IMDb ID.</p>
         </EmptyState>
       ) : null}
       {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 && genreScan.scanning ? (

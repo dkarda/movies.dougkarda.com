@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router-dom'
+import { formatPersonalScore } from '../api/catalog'
 import { getMovie, posterUrl, youtubeTrailer, yearFromDate } from '../api/tmdb'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
@@ -87,7 +88,7 @@ export function MoviePage() {
         <dl className="flex flex-wrap gap-3 text-sm">
           {yours ? (
             <div className="rounded-full bg-amber-300 px-3 py-1 font-medium text-zinc-950">
-              Your rating {yours.score}/10
+              Your rating {formatPersonalScore(yours.score)}
             </div>
           ) : null}
           <div className="rounded-full border border-zinc-700 px-3 py-1 text-zinc-300">
