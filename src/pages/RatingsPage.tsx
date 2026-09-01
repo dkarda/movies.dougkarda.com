@@ -87,16 +87,6 @@ export function RatingsPage() {
               label: `Top ${list.count} ${list.name}`,
             }))}
           />
-          <FilterSelect
-            label="Owned"
-            value={filters.own}
-            onChange={(own) => setFilters((current) => ({ ...current, own }))}
-            options={options.owns.map((value) => ({
-              value,
-              label: value === 'y' ? 'Yes' : value === 'n' ? 'No' : value,
-            }))}
-            emptyLabel="Any"
-          />
           <label className="flex flex-col gap-1 text-xs text-zinc-400">
             Sort
             <select
