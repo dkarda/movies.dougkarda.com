@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MOVIE_PAGE_SIZE, type PersonalMovie } from '../api/catalog'
 import { useHydratedMovies } from '../hooks/useHydratedMovies'
 import { MovieCard } from './MovieCard'
@@ -20,14 +20,14 @@ function useInViewOnce(rootMargin = '800px') {
   const ref = useRef<HTMLDivElement>(null)
   const [inView, setInView] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current
     if (!el || inView) return
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) setInView(true)
       },
-      { rootMargin },
+      { rootMargin, threshold: 0 },
     )
     observer.observe(el)
     return () => observer.disconnect()
@@ -51,7 +51,12 @@ export function LazyMovieGrid({
   const rows = useHydratedMovies(slice, inView, listName)
   const hasMore = shown < entries.length
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const listKey = `${entries.length}:${entries[0]?.imdbID ?? ''}:${entries.at(-1)?.imdbID ?? ''}`
+  const listKey = [
+    listName ?? '',
+    String(entries.length),
+    ...entries.slice(0, MOVIE_PAGE_SIZE).map((entry) => entry.imdbID ?? ''),
+    entries.at(-1)?.imdbID ?? '',
+  ].join(':')
 
   useEffect(() => {
     setShown(MOVIE_PAGE_SIZE)
@@ -84,7 +89,7 @@ export function LazyMovieGrid({
           {rows.map((row) => {
             if (row.movie) {
               return (
-                <li key={row.movie.id} style={{ contentVisibility: 'auto' }}>
+                <li key={row.entry.imdbID ?? row.movie.id}>
                   <MovieCard movie={row.movie} />
                 </li>
               )

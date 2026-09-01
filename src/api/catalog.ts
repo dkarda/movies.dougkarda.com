@@ -65,6 +65,29 @@ export function catalogYear(movie: PersonalMovie): string {
   return match?.[0] ?? ''
 }
 
+export function normalizeTitle(title: string) {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+export function matchesTextQuery(movie: PersonalMovie, query: string) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return true
+  const haystack = [
+    movie.Title,
+    movie.Director,
+    movie.Actors,
+    ...(movie.toplists ?? []).map((item) => item.listName),
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(needle)
+}
+
 export function listRankFor(movie: PersonalMovie, listName: string) {
   const rank = movie.toplists?.find((item) => item.listName === listName)?.listRank
   return typeof rank === 'number' ? rank : undefined
@@ -130,13 +153,7 @@ export function catalogFilterOptions(movies: PersonalMovie[]) {
 export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) {
   const needle = filters.query.trim().toLowerCase()
   const filtered = movies.filter((movie) => {
-    if (needle) {
-      const haystack = [movie.Title, movie.Director, movie.Actors]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      if (!haystack.includes(needle)) return false
-    }
+    if (needle && !matchesTextQuery(movie, needle)) return false
     if (filters.genre && !catalogGenres(movie).includes(filters.genre)) return false
     if (filters.year && catalogYear(movie) !== filters.year) return false
     if (filters.own && movie.own !== filters.own) return false
@@ -151,7 +168,11 @@ export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) 
     return true
   })
 
-  const sorted = [...filtered]
+  return sortCatalog(filtered, filters)
+}
+
+export function sortCatalog(movies: PersonalMovie[], filters: CatalogFilters) {
+  const sorted = [...movies]
   if (filters.toplist) {
     sorted.sort((a, b) => {
       const rankA = listRankFor(a, filters.toplist) ?? -Infinity

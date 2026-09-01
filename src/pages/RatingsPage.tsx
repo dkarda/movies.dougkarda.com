@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   catalogFilterOptions,
   EMPTY_CATALOG_FILTERS,
   filterCatalog,
+  matchesTextQuery,
+  normalizeTitle,
+  sortCatalog,
   type CatalogFilters,
 } from '../api/catalog'
+import { personMovieTitleKeys } from '../api/tmdb'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
@@ -17,10 +22,37 @@ export function RatingsPage() {
   const enabled = hasPublicAuth()
   const catalogQuery = usePersonalCatalog(enabled)
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_CATALOG_FILTERS)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(filters.query.trim())
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [filters.query])
 
   const movies = catalogQuery.data ?? []
   const options = useMemo(() => catalogFilterOptions(movies), [movies])
-  const visible = useMemo(() => filterCatalog(movies, filters), [movies, filters])
+  const personQuery = useQuery({
+    queryKey: ['tmdb-person-titles', debouncedQuery.toLowerCase()],
+    queryFn: () => personMovieTitleKeys(debouncedQuery),
+    enabled: enabled && debouncedQuery.length >= 2,
+    staleTime: 30 * 60 * 1000,
+  })
+
+  const visible = useMemo(() => {
+    const constrained = filterCatalog(movies, { ...filters, query: '' })
+    const needle = filters.query.trim()
+    if (!needle) return constrained
+
+    const personTitles = personQuery.data
+    const hits = constrained.filter((movie) => {
+      if (matchesTextQuery(movie, needle)) return true
+      const titleKey = normalizeTitle(movie.Title ?? '')
+      return Boolean(titleKey && personTitles?.has(titleKey))
+    })
+    return sortCatalog(hits, filters)
+  }, [movies, filters, personQuery.data])
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_CATALOG_FILTERS)
 
   if (!enabled) {
@@ -64,13 +96,6 @@ export function RatingsPage() {
             value={filters.genre}
             onChange={(genre) => setFilters((current) => ({ ...current, genre }))}
             options={options.genres.map((value) => ({ value, label: value }))}
-          />
-          <FilterSelect
-            label="Year"
-            value={filters.year}
-            onChange={(year) => setFilters((current) => ({ ...current, year }))}
-            options={options.years.map((value) => ({ value, label: value }))}
-            emptyLabel="Any"
           />
           <FilterSelect
             label="Collection"
@@ -140,17 +165,12 @@ export function RatingsPage() {
       ) : null}
       {visible.length > 0 ? (
         <LazyMovieGrid
-          key={listSignature(visible, filters)}
           entries={visible}
           listName={filters.toplist || undefined}
         />
       ) : null}
     </section>
   )
-}
-
-function listSignature(movies: { imdbID?: string }[], filters: CatalogFilters) {
-  return `${filters.sort}:${filters.toplist}:${movies.length}:${movies[0]?.imdbID ?? ''}:${movies.at(-1)?.imdbID ?? ''}`
 }
 
 function FilterSelect({

@@ -1,5 +1,5 @@
 import { hasAccountAuth, tmdbEnv } from '../lib/config'
-import { TMDB_FIND_CONCURRENCY } from './catalog'
+import { normalizeTitle, TMDB_FIND_CONCURRENCY } from './catalog'
 
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
@@ -168,6 +168,35 @@ export function getGenres() {
   return tmdbFetch<{ genres: Genre[] }>('/genre/movie/list', {
     language: 'en-US',
   })
+}
+
+export async function personMovieTitleKeys(query: string) {
+  const data = await tmdbFetch<{ results: { id: number }[] }>('/search/person', {
+    query,
+    include_adult: 'false',
+    language: 'en-US',
+  })
+  const people = data.results.slice(0, 2)
+  const titles = new Set<string>()
+
+  for (const person of people) {
+    const credits = await tmdbFetch<{
+      cast?: { title?: string; original_title?: string }[]
+      crew?: { title?: string; original_title?: string; job?: string }[]
+    }>(`/person/${person.id}/movie_credits`, { language: 'en-US' })
+
+    for (const row of credits.cast ?? []) {
+      if (row.title) titles.add(normalizeTitle(row.title))
+      if (row.original_title) titles.add(normalizeTitle(row.original_title))
+    }
+    for (const row of credits.crew ?? []) {
+      if (row.job !== 'Director' && row.job !== 'Writer') continue
+      if (row.title) titles.add(normalizeTitle(row.title))
+      if (row.original_title) titles.add(normalizeTitle(row.original_title))
+    }
+  }
+
+  return titles
 }
 
 export async function findMovieByImdbId(imdbId: string) {
