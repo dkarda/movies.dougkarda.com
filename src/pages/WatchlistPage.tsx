@@ -1,78 +1,184 @@
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
-import { getFavorites, getWatchlist } from '../api/tmdb'
-import { MovieGrid } from '../components/MovieCard'
+import {
+  EMPTY_CATALOG_FILTERS,
+  matchesTextQuery,
+  normalizeTitle,
+  sortCatalog,
+  type CatalogFilters,
+  type PersonalMovie,
+} from '../api/catalog'
+import { getGenres, personMovieTitleKeys } from '../api/tmdb'
+import { FilterSelect, selectClass } from '../components/FilterSelect'
+import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
-import { hasAccountAuth } from '../lib/config'
+import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
+import { useTmdbGenreMatchIds } from '../hooks/useTmdbGenreMatchIds'
+import { useTmdbReleaseYears } from '../hooks/useTmdbReleaseYears'
+import { hasPublicAuth } from '../lib/config'
 
-type Tab = 'watchlist' | 'favorites'
+const EMPTY_MOVIES: PersonalMovie[] = []
+const EMPTY_WATCHLIST_FILTERS = {
+  query: '',
+  genre: '',
+  sort: 'title' as CatalogFilters['sort'],
+}
 
 export function WatchlistPage() {
-  const [tab, setTab] = useState<Tab>('watchlist')
-  const enabled = hasAccountAuth()
+  const enabled = hasPublicAuth()
+  const catalogQuery = usePersonalCatalog(enabled)
+  const [filters, setFilters] = useState(EMPTY_WATCHLIST_FILTERS)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
 
-  const watchQuery = useQuery({
-    queryKey: ['watchlist'],
-    queryFn: getWatchlist,
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(filters.query.trim())
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [filters.query])
+
+  const movies = useMemo(
+    () => (catalogQuery.data ?? EMPTY_MOVIES).filter((movie) => movie.status === 'towatch'),
+    [catalogQuery.data],
+  )
+  const genresQuery = useQuery({
+    queryKey: ['genres'],
+    queryFn: getGenres,
     enabled,
   })
-  const favQuery = useQuery({
-    queryKey: ['favorites'],
-    queryFn: getFavorites,
-    enabled,
+  const personQuery = useQuery({
+    queryKey: ['tmdb-person-titles', debouncedQuery.toLowerCase()],
+    queryFn: () => personMovieTitleKeys(debouncedQuery),
+    enabled: enabled && debouncedQuery.length >= 2,
+    staleTime: 30 * 60 * 1000,
   })
+  const genreScan = useTmdbGenreMatchIds(movies, filters.genre)
+  const yearScan = useTmdbReleaseYears(
+    movies,
+    filters.sort === 'year-desc' || filters.sort === 'year-asc',
+  )
+
+  const visible = useMemo(() => {
+    const byGenre = filters.genre
+      ? movies.filter((movie) => genreScan.matchIds.has(movie.imdbID ?? ''))
+      : movies
+    const needle = filters.query.trim()
+    const hits = needle
+      ? byGenre.filter((movie) => {
+          if (matchesTextQuery(movie, needle)) return true
+          const titleKey = normalizeTitle(movie.Title ?? '')
+          return Boolean(titleKey && personQuery.data?.has(titleKey))
+        })
+      : byGenre
+    return sortCatalog(hits, { ...EMPTY_CATALOG_FILTERS, sort: filters.sort }, yearScan.years)
+  }, [movies, filters, genreScan.matchIds, personQuery.data, yearScan.years])
+
+  const filtersActive =
+    filters.query.trim() !== '' || filters.genre !== '' || filters.sort !== 'title'
 
   if (!enabled) {
     return (
-      <EmptyState title="Connect your TMDB account">
-        <p>Watchlist and favorites are read from your TMDB account (read-only).</p>
+      <EmptyState title="Add your TMDB credentials">
+        <p>
+          Copy <code className="rounded bg-zinc-800 px-1">.env.example</code> to{' '}
+          <code className="rounded bg-zinc-800 px-1">.env</code> and set{' '}
+          <code className="rounded bg-zinc-800 px-1">VITE_TMDB_API_KEY</code> or{' '}
+          <code className="rounded bg-zinc-800 px-1">VITE_TMDB_ACCESS_TOKEN</code>. Restart
+          the dev server after saving.
+        </p>
       </EmptyState>
     )
   }
 
-  const active = tab === 'watchlist' ? watchQuery : favQuery
-
   return (
     <section className="space-y-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Saved films</h1>
-      <div className="flex gap-2">
-        <TabButton active={tab === 'watchlist'} onClick={() => setTab('watchlist')}>
-          Watchlist
-        </TabButton>
-        <TabButton active={tab === 'favorites'} onClick={() => setTab('favorites')}>
-          Favorites
-        </TabButton>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">Watchlist</h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Titles in your catalog marked to watch.
+        </p>
       </div>
-      {active.isPending ? <Spinner /> : null}
-      {active.isError ? <ErrorMessage error={active.error} /> : null}
-      {active.isSuccess && active.data.length === 0 ? (
-        <EmptyState title={tab === 'watchlist' ? 'Watchlist is empty' : 'No favorites yet'}>
-          <p>Add titles on themoviedb.org, then return here after the cache refreshes.</p>
+
+      {catalogQuery.isSuccess && movies.length > 0 ? (
+        <form
+          className="grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 sm:grid-cols-2 lg:grid-cols-4"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <label className="flex flex-col gap-1 text-xs text-zinc-400 sm:col-span-2">
+            Search
+            <input
+              value={filters.query}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, query: event.target.value }))
+              }
+              className={selectClass}
+              placeholder="Title, director, or actor"
+            />
+          </label>
+          <FilterSelect
+            label="Genre"
+            value={filters.genre}
+            onChange={(genre) => setFilters((current) => ({ ...current, genre }))}
+            options={(genresQuery.data?.genres ?? []).map((genre) => ({
+              value: String(genre.id),
+              label: genre.name,
+            }))}
+          />
+          <label className="flex flex-col gap-1 text-xs text-zinc-400">
+            Sort
+            <select
+              value={filters.sort}
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  sort: event.target.value as CatalogFilters['sort'],
+                }))
+              }
+              className={selectClass}
+            >
+              <option value="title">Title A-Z</option>
+              <option value="year-desc">Year newest</option>
+              <option value="year-asc">Year oldest</option>
+            </select>
+          </label>
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+            <button
+              type="button"
+              className="rounded-full border border-zinc-600 px-4 py-2 text-sm disabled:opacity-40"
+              disabled={!filtersActive}
+              onClick={() => setFilters(EMPTY_WATCHLIST_FILTERS)}
+            >
+              Clear filters
+            </button>
+            <p className="text-sm text-zinc-400">
+              Showing {visible.length} of {movies.length}
+              {genreScan.scanning
+                ? ` · matching genre ${genreScan.scanned}/${genreScan.total}`
+                : ''}
+              {yearScan.scanning
+                ? ` · reading years ${yearScan.scanned}/${yearScan.total}`
+                : ''}
+            </p>
+          </div>
+        </form>
+      ) : null}
+
+      {catalogQuery.isPending ? <Spinner /> : null}
+      {catalogQuery.isError ? <ErrorMessage error={catalogQuery.error} /> : null}
+      {catalogQuery.isSuccess && movies.length === 0 ? (
+        <EmptyState title="Watchlist is empty">
+          <p>Nothing in the catalog is marked to watch yet.</p>
         </EmptyState>
       ) : null}
-      {active.data && active.data.length > 0 ? <MovieGrid movies={active.data} /> : null}
+      {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 && genreScan.scanning ? (
+        <Spinner />
+      ) : null}
+      {catalogQuery.isSuccess && movies.length > 0 && visible.length === 0 && !genreScan.scanning ? (
+        <EmptyState title="No matches">
+          <p>Nothing on the watchlist fits those filters. Clear them or pick another value.</p>
+        </EmptyState>
+      ) : null}
+      {visible.length > 0 ? <LazyMovieGrid entries={visible} /> : null}
     </section>
-  )
-}
-
-function TabButton({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean
-  children: ReactNode
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-4 py-1.5 text-sm ${
-        active ? 'bg-amber-300 text-zinc-950' : 'border border-zinc-700 text-zinc-300'
-      }`}
-    >
-      {children}
-    </button>
   )
 }

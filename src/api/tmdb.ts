@@ -1,9 +1,8 @@
-import { hasAccountAuth, tmdbEnv } from '../lib/config'
+import { tmdbEnv } from '../lib/config'
 import { normalizeTitle, TMDB_FIND_CONCURRENCY } from './catalog'
 
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
-const MAX_PAGES = 50
 
 export type PosterSize = 'w185' | 'w342' | 'w500' | 'original'
 
@@ -118,20 +117,6 @@ async function withFindSlot<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function fetchAllPages<T>(
-  path: string,
-  params: Record<string, string | number | undefined> = {},
-): Promise<T[]> {
-  const first = await tmdbFetch<Paginated<T>>(path, { ...params, page: 1 })
-  const items = [...first.results]
-  const lastPage = Math.min(first.total_pages || 1, MAX_PAGES)
-  for (let page = 2; page <= lastPage; page += 1) {
-    const next = await tmdbFetch<Paginated<T>>(path, { ...params, page })
-    items.push(...next.results)
-  }
-  return items
-}
-
 export function searchMovies(query: string, page = 1) {
   return tmdbFetch<Paginated<Movie>>('/search/movie', {
     query,
@@ -206,28 +191,6 @@ export async function findMovieByImdbId(imdbId: string) {
       language: 'en-US',
     })
     return data.movie_results[0] ?? null
-  })
-}
-
-export async function getWatchlist() {
-  if (!hasAccountAuth()) {
-    throw new Error('Set VITE_TMDB_ACCOUNT_ID plus an API key or access token.')
-  }
-  const { accountId } = tmdbEnv()
-  return fetchAllPages<Movie>(`/account/${accountId}/watchlist/movies`, {
-    sort_by: 'created_at.desc',
-    language: 'en-US',
-  })
-}
-
-export async function getFavorites() {
-  if (!hasAccountAuth()) {
-    throw new Error('Set VITE_TMDB_ACCOUNT_ID plus an API key or access token.')
-  }
-  const { accountId } = tmdbEnv()
-  return fetchAllPages<Movie>(`/account/${accountId}/favorite/movies`, {
-    sort_by: 'created_at.desc',
-    language: 'en-US',
   })
 }
 

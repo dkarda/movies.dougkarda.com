@@ -11,14 +11,14 @@ import {
   type PersonalMovie,
 } from '../api/catalog'
 import { getGenres, personMovieTitleKeys } from '../api/tmdb'
+import { FilterSelect, selectClass } from '../components/FilterSelect'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
 import { useTmdbGenreMatchIds } from '../hooks/useTmdbGenreMatchIds'
+import { useTmdbReleaseYears } from '../hooks/useTmdbReleaseYears'
 import { hasPublicAuth } from '../lib/config'
 
-const selectClass =
-  'rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white'
 const EMPTY_MOVIES: PersonalMovie[] = []
 
 export function RatingsPage() {
@@ -53,33 +53,37 @@ export function RatingsPage() {
         ...filters,
         query: '',
         genre: '',
+        sort: 'title',
       }),
     [
       movies,
       filters.collection,
       filters.own,
-      filters.sort,
       filters.toplist,
       filters.year,
     ],
   )
   const genreScan = useTmdbGenreMatchIds(constrained, filters.genre)
+  const yearScan = useTmdbReleaseYears(
+    constrained,
+    filters.sort === 'year-desc' || filters.sort === 'year-asc',
+  )
 
   const visible = useMemo(() => {
     const byGenre = filters.genre
       ? constrained.filter((movie) => genreScan.matchIds.has(movie.imdbID ?? ''))
       : constrained
     const needle = filters.query.trim()
-    if (!needle) return byGenre
-
     const personTitles = personQuery.data
-    const hits = byGenre.filter((movie) => {
-      if (matchesTextQuery(movie, needle)) return true
-      const titleKey = normalizeTitle(movie.Title ?? '')
-      return Boolean(titleKey && personTitles?.has(titleKey))
-    })
-    return sortCatalog(hits, filters)
-  }, [constrained, filters, genreScan.matchIds, personQuery.data])
+    const hits = needle
+      ? byGenre.filter((movie) => {
+          if (matchesTextQuery(movie, needle)) return true
+          const titleKey = normalizeTitle(movie.Title ?? '')
+          return Boolean(titleKey && personTitles?.has(titleKey))
+        })
+      : byGenre
+    return sortCatalog(hits, filters, yearScan.years)
+  }, [constrained, filters, genreScan.matchIds, personQuery.data, yearScan.years])
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_CATALOG_FILTERS)
 
   if (!enabled) {
@@ -179,6 +183,9 @@ export function RatingsPage() {
               {genreScan.scanning
                 ? ` · matching genre ${genreScan.scanned}/${genreScan.total}`
                 : ''}
+              {yearScan.scanning
+                ? ` · reading years ${yearScan.scanned}/${yearScan.total}`
+                : ''}
             </p>
           </div>
         </form>
@@ -206,37 +213,5 @@ export function RatingsPage() {
         />
       ) : null}
     </section>
-  )
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-  emptyLabel = 'All',
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: Array<{ value: string; label: string }>
-  emptyLabel?: string
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-xs text-zinc-400">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={selectClass}
-      >
-        <option value="">{emptyLabel}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
   )
 }

@@ -176,7 +176,16 @@ export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) 
   return sortCatalog(filtered, filters)
 }
 
-export function sortCatalog(movies: PersonalMovie[], filters: CatalogFilters) {
+function sortYear(movie: PersonalMovie, releaseYearByImdb?: Map<string, string>) {
+  const fromTmdb = movie.imdbID ? releaseYearByImdb?.get(movie.imdbID) : undefined
+  return Number(fromTmdb || catalogYear(movie) || 0)
+}
+
+export function sortCatalog(
+  movies: PersonalMovie[],
+  filters: CatalogFilters,
+  releaseYearByImdb?: Map<string, string>,
+) {
   const sorted = [...movies]
   if (filters.toplist) {
     sorted.sort((a, b) => {
@@ -189,9 +198,17 @@ export function sortCatalog(movies: PersonalMovie[], filters: CatalogFilters) {
   } else if (filters.sort === 'score-asc') {
     sorted.sort((a, b) => (a.score ?? 0) - (b.score ?? 0) || (a.Title ?? '').localeCompare(b.Title ?? ''))
   } else if (filters.sort === 'year-desc') {
-    sorted.sort((a, b) => Number(catalogYear(b) || 0) - Number(catalogYear(a) || 0))
+    sorted.sort(
+      (a, b) =>
+        sortYear(b, releaseYearByImdb) - sortYear(a, releaseYearByImdb) ||
+        (a.Title ?? '').localeCompare(b.Title ?? ''),
+    )
   } else if (filters.sort === 'year-asc') {
-    sorted.sort((a, b) => Number(catalogYear(a) || 0) - Number(catalogYear(b) || 0))
+    sorted.sort((a, b) => {
+      const yearA = sortYear(a, releaseYearByImdb) || Infinity
+      const yearB = sortYear(b, releaseYearByImdb) || Infinity
+      return yearA - yearB || (a.Title ?? '').localeCompare(b.Title ?? '')
+    })
   } else {
     sorted.sort((a, b) => (a.Title ?? '').localeCompare(b.Title ?? ''))
   }
