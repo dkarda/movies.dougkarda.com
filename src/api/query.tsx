@@ -26,7 +26,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
       persistOptions={{
         persister,
         maxAge: 24 * 60 * 60 * 1000,
-        buster: 'v2-catalog',
+        buster: 'v4-person-ids',
       }}
     >
       {children}

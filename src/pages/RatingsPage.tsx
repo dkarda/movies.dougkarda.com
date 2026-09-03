@@ -5,12 +5,12 @@ import {
   EMPTY_CATALOG_FILTERS,
   filterCatalog,
   matchesTextQuery,
-  normalizeTitle,
   sortCatalog,
   type CatalogFilters,
   type PersonalMovie,
 } from '../api/catalog'
-import { getGenres, personMovieTitleKeys } from '../api/tmdb'
+import { catalogImdbIdsForPerson, imdbIdSet } from '../api/personCatalog'
+import { getGenres } from '../api/tmdb'
 import { FilterSelect, selectClass } from '../components/FilterSelect'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
@@ -42,9 +42,9 @@ export function RatingsPage() {
     enabled,
   })
   const personQuery = useQuery({
-    queryKey: ['tmdb-person-titles', debouncedQuery.toLowerCase()],
-    queryFn: () => personMovieTitleKeys(debouncedQuery),
-    enabled: enabled && debouncedQuery.length >= 2,
+    queryKey: ['tmdb-person-catalog-imdb', debouncedQuery.toLowerCase(), movies.length],
+    queryFn: () => catalogImdbIdsForPerson(debouncedQuery, movies),
+    enabled: enabled && debouncedQuery.length >= 2 && movies.length > 0,
     staleTime: 30 * 60 * 1000,
   })
   const constrained = useMemo(
@@ -74,12 +74,11 @@ export function RatingsPage() {
       ? constrained.filter((movie) => genreScan.matchIds.has(movie.imdbID ?? ''))
       : constrained
     const needle = filters.query.trim()
-    const personTitles = personQuery.data
+    const personImdbIds = imdbIdSet(personQuery.data)
     const hits = needle
       ? byGenre.filter((movie) => {
           if (matchesTextQuery(movie, needle)) return true
-          const titleKey = normalizeTitle(movie.Title ?? '')
-          return Boolean(titleKey && personTitles?.has(titleKey))
+          return Boolean(movie.imdbID && personImdbIds.has(movie.imdbID))
         })
       : byGenre
     return sortCatalog(hits, filters, yearScan.years)

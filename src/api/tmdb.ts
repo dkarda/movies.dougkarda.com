@@ -155,35 +155,6 @@ export function getGenres() {
   })
 }
 
-export async function personMovieTitleKeys(query: string) {
-  const data = await tmdbFetch<{ results: { id: number }[] }>('/search/person', {
-    query,
-    include_adult: 'false',
-    language: 'en-US',
-  })
-  const people = data.results.slice(0, 2)
-  const titles = new Set<string>()
-
-  for (const person of people) {
-    const credits = await tmdbFetch<{
-      cast?: { title?: string; original_title?: string }[]
-      crew?: { title?: string; original_title?: string; job?: string }[]
-    }>(`/person/${person.id}/movie_credits`, { language: 'en-US' })
-
-    for (const row of credits.cast ?? []) {
-      if (row.title) titles.add(normalizeTitle(row.title))
-      if (row.original_title) titles.add(normalizeTitle(row.original_title))
-    }
-    for (const row of credits.crew ?? []) {
-      if (row.job !== 'Director' && row.job !== 'Writer') continue
-      if (row.title) titles.add(normalizeTitle(row.title))
-      if (row.original_title) titles.add(normalizeTitle(row.original_title))
-    }
-  }
-
-  return titles
-}
-
 export async function findMovieByImdbId(imdbId: string) {
   return withFindSlot(async () => {
     const data = await tmdbFetch<{ movie_results: Movie[] }>(`/find/${imdbId}`, {
@@ -192,6 +163,49 @@ export async function findMovieByImdbId(imdbId: string) {
     })
     return data.movie_results[0] ?? null
   })
+}
+
+type PersonCredit = {
+  id?: number
+  title?: string
+  original_title?: string
+  job?: string
+}
+
+function addPersonCredit(
+  row: PersonCredit,
+  tmdbIds: Set<number>,
+  titleKeys: Set<string>,
+) {
+  if (typeof row.id === 'number') tmdbIds.add(row.id)
+  if (row.title) titleKeys.add(normalizeTitle(row.title))
+  if (row.original_title) titleKeys.add(normalizeTitle(row.original_title))
+}
+
+export async function personCreditIndex(query: string) {
+  const data = await tmdbFetch<{ results: { id: number }[] }>('/search/person', {
+    query,
+    include_adult: 'false',
+    language: 'en-US',
+  })
+  const people = data.results.slice(0, 2)
+  const tmdbIds = new Set<number>()
+  const titleKeys = new Set<string>()
+
+  for (const person of people) {
+    const credits = await tmdbFetch<{
+      cast?: PersonCredit[]
+      crew?: PersonCredit[]
+    }>(`/person/${person.id}/movie_credits`, { language: 'en-US' })
+
+    for (const row of credits.cast ?? []) addPersonCredit(row, tmdbIds, titleKeys)
+    for (const row of credits.crew ?? []) {
+      if (row.job !== 'Director' && row.job !== 'Writer') continue
+      addPersonCredit(row, tmdbIds, titleKeys)
+    }
+  }
+
+  return { ids: [...tmdbIds], titleKeys: [...titleKeys] }
 }
 
 export function youtubeTrailer(details: MovieDetails) {
