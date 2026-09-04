@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { PersonalMovie } from '../api/catalog'
+import { catalogEntryKey, type PersonalMovie } from '../api/catalog'
 import { queryClient } from '../api/query'
-import { findMovieByImdbId, yearFromDate } from '../api/tmdb'
+import { catalogMovieQueryKey, hydrateCatalogMovie, yearFromDate } from '../api/tmdb'
 
 export function useTmdbReleaseYears(movies: PersonalMovie[], enabled: boolean) {
   const [years, setYears] = useState<Map<string, string>>(() => new Map())
@@ -22,14 +22,14 @@ export function useTmdbReleaseYears(movies: PersonalMovie[], enabled: boolean) {
     void (async () => {
       for (let index = 0; index < movies.length; index += 1) {
         if (cancelled) return
-        const imdbID = movies[index]?.imdbID
-        if (imdbID) {
+        const entry = movies[index]
+        if (entry) {
           const movie = await queryClient.fetchQuery({
-            queryKey: ['tmdb-find', imdbID],
-            queryFn: () => findMovieByImdbId(imdbID),
+            queryKey: catalogMovieQueryKey(entry),
+            queryFn: () => hydrateCatalogMovie(entry),
           })
           const year = yearFromDate(movie?.release_date)
-          if (year) next.set(imdbID, year)
+          if (year) next.set(catalogEntryKey(entry), year)
         }
         if (index % 8 === 0 || index === movies.length - 1) {
           setYears(new Map(next))

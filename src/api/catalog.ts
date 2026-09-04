@@ -21,9 +21,12 @@ export type PersonalMovie = {
   Director?: string
   Actors?: string
   imdbID?: string
+  tmdbID?: string
   score?: number
   status?: string
   own?: string
+  notes?: string
+  note?: string
   collections?: { collection: string }[]
   toplists?: { listName: string; listRank?: number }[]
 }
@@ -40,14 +43,36 @@ export async function fetchPersonalCatalog(): Promise<PersonalMovie[]> {
   return data as PersonalMovie[]
 }
 
+export function catalogImdbId(movie: Pick<PersonalMovie, 'imdbID'>): string | undefined {
+  const id = movie.imdbID?.trim()
+  if (!id || id === 'N/A' || !id.startsWith('tt')) return undefined
+  return id
+}
+
+export function catalogTmdbId(movie: Pick<PersonalMovie, 'tmdbID'>): string | undefined {
+  const id = movie.tmdbID?.trim()
+  if (!id || id === 'N/A' || !/^\d+$/.test(id)) return undefined
+  return id
+}
+
+export function hasCatalogLookupId(movie: PersonalMovie) {
+  return Boolean(catalogTmdbId(movie) || catalogImdbId(movie))
+}
+
+export function catalogEntryKey(movie: Pick<PersonalMovie, 'Title' | 'imdbID' | 'tmdbID'>) {
+  const tmdb = catalogTmdbId(movie)
+  const imdb = catalogImdbId(movie)
+  const id = tmdb != null ? `tmdb:${tmdb}` : (imdb ?? '')
+  return `${id}::${normalizeTitle(movie.Title ?? '')}`
+}
+
 export function pickTestCatalogMovies(catalog: PersonalMovie[]): PersonalMovie[] {
   return catalog
     .filter(
       (movie) =>
         typeof movie.Title === 'string' &&
         movie.Title.trim().length > 0 &&
-        typeof movie.imdbID === 'string' &&
-        movie.imdbID.startsWith('tt'),
+        hasCatalogLookupId(movie),
     )
     .slice(0, PERSONAL_MOVIE_LIMIT)
 }
@@ -176,15 +201,15 @@ export function filterCatalog(movies: PersonalMovie[], filters: CatalogFilters) 
   return sortCatalog(filtered, filters)
 }
 
-function sortYear(movie: PersonalMovie, releaseYearByImdb?: Map<string, string>) {
-  const fromTmdb = movie.imdbID ? releaseYearByImdb?.get(movie.imdbID) : undefined
+function sortYear(movie: PersonalMovie, releaseYearByKey?: Map<string, string>) {
+  const fromTmdb = releaseYearByKey?.get(catalogEntryKey(movie))
   return Number(fromTmdb || catalogYear(movie) || 0)
 }
 
 export function sortCatalog(
   movies: PersonalMovie[],
   filters: CatalogFilters,
-  releaseYearByImdb?: Map<string, string>,
+  releaseYearByKey?: Map<string, string>,
 ) {
   const sorted = [...movies]
   if (filters.toplist) {
@@ -200,13 +225,13 @@ export function sortCatalog(
   } else if (filters.sort === 'year-desc') {
     sorted.sort(
       (a, b) =>
-        sortYear(b, releaseYearByImdb) - sortYear(a, releaseYearByImdb) ||
+        sortYear(b, releaseYearByKey) - sortYear(a, releaseYearByKey) ||
         (a.Title ?? '').localeCompare(b.Title ?? ''),
     )
   } else if (filters.sort === 'year-asc') {
     sorted.sort((a, b) => {
-      const yearA = sortYear(a, releaseYearByImdb) || Infinity
-      const yearB = sortYear(b, releaseYearByImdb) || Infinity
+      const yearA = sortYear(a, releaseYearByKey) || Infinity
+      const yearB = sortYear(b, releaseYearByKey) || Infinity
       return yearA - yearB || (a.Title ?? '').localeCompare(b.Title ?? '')
     })
   } else {
@@ -283,12 +308,12 @@ export function pickDailySuggestions(
     (movie) =>
       typeof movie.score === 'number' &&
       movie.score >= DAILY_SUGGESTION_MIN_SCORE &&
-      typeof movie.imdbID === 'string',
+      hasCatalogLookupId(movie),
   )
   if (pool.length === 0) return []
 
   const today = localDateKey()
-  const byId = new Map(pool.map((movie) => [movie.imdbID as string, movie]))
+  const byId = new Map(pool.map((movie) => [catalogEntryKey(movie), movie]))
   const stored = readStoredIds(today)
     ?.map((id) => byId.get(id))
     .filter((movie): movie is PersonalMovie => Boolean(movie))
@@ -302,7 +327,7 @@ export function pickDailySuggestions(
   const picked = shuffleWithSeed(pool, today).slice(0, Math.min(count, pool.length))
   writeStoredIds(
     today,
-    picked.map((movie) => movie.imdbID as string),
+    picked.map((movie) => catalogEntryKey(movie)),
   )
   return picked
 }

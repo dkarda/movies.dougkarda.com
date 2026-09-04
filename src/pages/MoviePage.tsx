@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { formatPersonalScore } from '../api/catalog'
+import { catalogImdbId, catalogTmdbId, formatPersonalScore } from '../api/catalog'
 import { getMovie, posterUrl, youtubeTrailer, yearFromDate } from '../api/tmdb'
 import { EmptyState, ErrorMessage, Spinner } from '../components/Status'
 import { usePersonalCatalog } from '../hooks/usePersonalCatalog'
@@ -56,7 +56,11 @@ export function MoviePage() {
   if (movieQuery.isError) return <ErrorMessage error={movieQuery.error} />
 
   const movie = movieQuery.data
-  const yours = catalogQuery.data?.find((entry) => entry.imdbID === movie.imdb_id)
+  const yours = catalogQuery.data?.find((entry) => {
+    const byTmdb = catalogTmdbId(entry) === String(movie.id)
+    const byImdb = Boolean(movie.imdb_id && catalogImdbId(entry) === movie.imdb_id)
+    return byTmdb || byImdb
+  })
   const poster = posterUrl(movie.poster_path, 'w500')
   const trailer = youtubeTrailer(movie)
   const director = movie.credits?.crew.find((c) => c.job === 'Director')
@@ -101,6 +105,11 @@ export function MoviePage() {
           ) : null}
         </dl>
         <p className="max-w-3xl text-sm leading-7 text-zinc-300">{movie.overview}</p>
+        {yours?.notes?.trim() || yours?.note?.trim() ? (
+          <p className="max-w-3xl text-sm leading-7 text-zinc-300">
+            {(yours.notes ?? yours.note)?.trim()}
+          </p>
+        ) : null}
         {director ? <p className="text-sm text-zinc-400">Director: {director.name}</p> : null}
         {movie.genres?.length ? (
           <p className="text-sm text-zinc-400">

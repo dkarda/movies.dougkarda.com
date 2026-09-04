@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { type PersonalMovie } from '../api/catalog'
+import { catalogEntryKey, type PersonalMovie } from '../api/catalog'
 import { getGenres } from '../api/tmdb'
 import { FilterSelect } from '../components/FilterSelect'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
@@ -18,7 +18,7 @@ function groupByTmdbGenre(
 ) {
   const groups = new Map<string, PersonalMovie[]>()
   for (const movie of movies) {
-    const ids = movie.imdbID ? genreIds.get(movie.imdbID) : undefined
+    const ids = genreIds.get(catalogEntryKey(movie))
     if (!ids?.length) continue
     const seen = new Set<string>()
     for (const id of ids) {

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  catalogEntryKey,
   EMPTY_CATALOG_FILTERS,
   matchesTextQuery,
   sortCatalog,
   type CatalogFilters,
   type PersonalMovie,
 } from '../api/catalog'
-import { catalogImdbIdsForPerson, imdbIdSet } from '../api/personCatalog'
+import { catalogKeysForPerson, idSet } from '../api/personCatalog'
 import { getGenres } from '../api/tmdb'
 import { FilterSelect, selectClass } from '../components/FilterSelect'
 import { LazyMovieGrid } from '../components/LazyMovieGrid'
@@ -48,7 +49,7 @@ export function WatchlistPage() {
   })
   const personQuery = useQuery({
     queryKey: ['tmdb-person-catalog-imdb', debouncedQuery.toLowerCase(), 'towatch', movies.length],
-    queryFn: () => catalogImdbIdsForPerson(debouncedQuery, movies),
+    queryFn: () => catalogKeysForPerson(debouncedQuery, movies),
     enabled: enabled && debouncedQuery.length >= 2 && movies.length > 0,
     staleTime: 30 * 60 * 1000,
   })
@@ -60,14 +61,14 @@ export function WatchlistPage() {
 
   const visible = useMemo(() => {
     const byGenre = filters.genre
-      ? movies.filter((movie) => genreScan.matchIds.has(movie.imdbID ?? ''))
+      ? movies.filter((movie) => genreScan.matchIds.has(catalogEntryKey(movie)))
       : movies
     const needle = filters.query.trim()
-    const personImdbIds = imdbIdSet(personQuery.data)
+    const personKeys = idSet(personQuery.data)
     const hits = needle
       ? byGenre.filter((movie) => {
           if (matchesTextQuery(movie, needle)) return true
-          return Boolean(movie.imdbID && personImdbIds.has(movie.imdbID))
+          return personKeys.has(catalogEntryKey(movie))
         })
       : byGenre
     return sortCatalog(hits, { ...EMPTY_CATALOG_FILTERS, sort: filters.sort }, yearScan.years)

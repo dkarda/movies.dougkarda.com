@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { MOVIE_PAGE_SIZE, type PersonalMovie } from '../api/catalog'
+import { MOVIE_PAGE_SIZE, catalogEntryKey, type PersonalMovie } from '../api/catalog'
 import { useHydratedMovies } from '../hooks/useHydratedMovies'
 import { MovieCard } from './MovieCard'
 import { Spinner } from './Status'
@@ -53,7 +53,7 @@ export function LazyMovieGrid({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const listKey = [
     listName ?? '',
-    ...entries.slice(0, MOVIE_PAGE_SIZE).map((entry) => entry.imdbID ?? ''),
+    ...entries.slice(0, MOVIE_PAGE_SIZE).map((entry) => catalogEntryKey(entry)),
   ].join(':')
 
   useEffect(() => {
@@ -87,14 +87,14 @@ export function LazyMovieGrid({
           {rows.map((row) => {
             if (row.movie) {
               return (
-                <li key={row.entry.imdbID ?? row.movie.id}>
+                <li key={catalogEntryKey(row.entry)}>
                   <MovieCard movie={row.movie} />
                 </li>
               )
             }
             if (row.isPending) {
               return (
-                <li key={row.entry.imdbID}>
+                <li key={catalogEntryKey(row.entry)}>
                   <MovieCardSkeleton />
                 </li>
               )

@@ -1,6 +1,6 @@
 import { useQueries } from '@tanstack/react-query'
-import { listRankFor, type PersonalMovie } from '../api/catalog'
-import { findMovieByImdbId } from '../api/tmdb'
+import { hasCatalogLookupId, listRankFor, type PersonalMovie } from '../api/catalog'
+import { catalogMovieQueryKey, hydrateCatalogMovie } from '../api/tmdb'
 
 export function useHydratedMovies(
   entries: PersonalMovie[],
@@ -9,9 +9,9 @@ export function useHydratedMovies(
 ) {
   const results = useQueries({
     queries: entries.map((entry) => ({
-      queryKey: ['tmdb-find', entry.imdbID],
-      queryFn: () => findMovieByImdbId(entry.imdbID as string),
-      enabled: enabled && Boolean(entry.imdbID),
+      queryKey: catalogMovieQueryKey(entry),
+      queryFn: () => hydrateCatalogMovie(entry),
+      enabled: enabled && hasCatalogLookupId(entry),
     })),
   })
 
@@ -22,7 +22,13 @@ export function useHydratedMovies(
     return {
       entry,
       movie: movie
-        ? { ...movie, rating: entry.score as number, own: entry.own, listRank }
+        ? {
+            ...movie,
+            rating: entry.score as number,
+            own: entry.own,
+            listRank,
+            note: entry.notes?.trim() || entry.note?.trim() || undefined,
+          }
         : undefined,
       isPending: query?.status === 'pending',
       isError: Boolean(query?.isError),

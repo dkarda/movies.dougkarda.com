@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { PersonalMovie } from '../api/catalog'
+import { catalogEntryKey, type PersonalMovie } from '../api/catalog'
 import { queryClient } from '../api/query'
-import { findMovieByImdbId } from '../api/tmdb'
+import { catalogMovieQueryKey, hydrateCatalogMovie } from '../api/tmdb'
 
 export function useTmdbGenreIds(movies: PersonalMovie[], enabled: boolean) {
   const [genreIds, setGenreIds] = useState<Map<string, number[]>>(() => new Map())
@@ -22,13 +22,13 @@ export function useTmdbGenreIds(movies: PersonalMovie[], enabled: boolean) {
     void (async () => {
       for (let index = 0; index < movies.length; index += 1) {
         if (cancelled) return
-        const imdbID = movies[index]?.imdbID
-        if (imdbID) {
+        const entry = movies[index]
+        if (entry) {
           const movie = await queryClient.fetchQuery({
-            queryKey: ['tmdb-find', imdbID],
-            queryFn: () => findMovieByImdbId(imdbID),
+            queryKey: catalogMovieQueryKey(entry),
+            queryFn: () => hydrateCatalogMovie(entry),
           })
-          next.set(imdbID, movie?.genre_ids ?? [])
+          next.set(catalogEntryKey(entry), movie?.genre_ids ?? [])
         }
         if (index % 8 === 0 || index === movies.length - 1) {
           setGenreIds(new Map(next))

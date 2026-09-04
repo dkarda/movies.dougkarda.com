@@ -5,7 +5,7 @@ import {
   PERSONAL_MOVIE_LIMIT,
 } from '../api/catalog'
 
-export const personalCatalogQueryKey = ['personal-catalog', PERSONAL_MOVIE_LIMIT, 'title-imdb'] as const
+export const personalCatalogQueryKey = ['personal-catalog', PERSONAL_MOVIE_LIMIT, 'title-tmdb-or-imdb'] as const
 
 export function usePersonalCatalog(enabled: boolean) {
   return useQuery({

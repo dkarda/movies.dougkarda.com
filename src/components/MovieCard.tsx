@@ -3,7 +3,7 @@ import { formatPersonalScore } from '../api/catalog'
 import { posterUrl, yearFromDate, type Movie } from '../api/tmdb'
 
 type Props = {
-  movie: Movie & { rating?: number; own?: string; listRank?: number }
+  movie: Movie & { rating?: number; own?: string; listRank?: number; note?: string }
 }
 
 export function MovieCard({ movie }: Props) {
@@ -60,10 +60,10 @@ export function MovieCard({ movie }: Props) {
         ) : null}
       </div>
       <div className="space-y-1 p-3">
-        <h3 className="line-clamp-2 text-sm font-medium text-white">{movie.title}</h3>
-        <p className="text-xs text-zinc-400">
-          {year || '—'}
-        </p>
+        <h3 className="line-clamp-2 text-sm font-medium text-white">
+          {movie.title}
+          <span className="text-zinc-400">&nbsp;({year || '—'})</span>
+        </h3>
         <p className="text-xs text-zinc-400">
           {[
             movie.rating != null ? `DK score ${formatPersonalScore(movie.rating)}` : null,
@@ -74,6 +74,7 @@ export function MovieCard({ movie }: Props) {
             .filter(Boolean)
             .join(' ··· ')}
         </p>
+        {movie.note ? <p className="text-xs text-zinc-400">{movie.note}</p> : null}
       </div>
     </Link>
   )
@@ -82,7 +83,7 @@ export function MovieCard({ movie }: Props) {
 export function MovieGrid({
   movies,
 }: {
-  movies: Array<Movie & { rating?: number; own?: string; listRank?: number }>
+  movies: Array<Movie & { rating?: number; own?: string; listRank?: number; note?: string }>
 }) {
   if (movies.length === 0) {
     return <p className="text-sm text-zinc-400">No movies to show.</p>

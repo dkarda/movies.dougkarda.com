@@ -1,5 +1,11 @@
 import { tmdbEnv } from '../lib/config'
-import { normalizeTitle, TMDB_FIND_CONCURRENCY } from './catalog'
+import {
+  catalogImdbId,
+  catalogTmdbId,
+  normalizeTitle,
+  TMDB_FIND_CONCURRENCY,
+  type PersonalMovie,
+} from './catalog'
 
 const API_BASE = 'https://api.themoviedb.org/3'
 const IMAGE_BASE = 'https://image.tmdb.org/t/p'
@@ -163,6 +169,43 @@ export async function findMovieByImdbId(imdbId: string) {
     })
     return data.movie_results[0] ?? null
   })
+}
+
+export async function getMovieByTmdbId(id: string): Promise<Movie | null> {
+  return withFindSlot(async () => {
+    try {
+      const data = await tmdbFetch<MovieDetails>(`/movie/${id}`, { language: 'en-US' })
+      return {
+        id: data.id,
+        title: data.title,
+        overview: data.overview,
+        poster_path: data.poster_path,
+        backdrop_path: data.backdrop_path,
+        release_date: data.release_date,
+        vote_average: data.vote_average,
+        vote_count: data.vote_count,
+        genre_ids: data.genre_ids ?? data.genres?.map((genre) => genre.id),
+        popularity: data.popularity,
+      }
+    } catch (error) {
+      if (error instanceof TmdbError && error.status === 404) return null
+      throw error
+    }
+  })
+}
+
+export function catalogMovieQueryKey(entry: PersonalMovie) {
+  const tmdb = catalogTmdbId(entry)
+  if (tmdb) return ['tmdb-movie', tmdb] as const
+  return ['tmdb-find', catalogImdbId(entry) ?? ''] as const
+}
+
+export function hydrateCatalogMovie(entry: PersonalMovie) {
+  const tmdb = catalogTmdbId(entry)
+  if (tmdb) return getMovieByTmdbId(tmdb)
+  const imdb = catalogImdbId(entry)
+  if (imdb) return findMovieByImdbId(imdb)
+  return Promise.resolve(null)
 }
 
 type PersonCredit = {

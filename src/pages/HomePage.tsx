@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import {
+  catalogEntryKey,
   DAILY_SUGGESTION_COUNT,
   DAILY_SUGGESTION_MIN_SCORE,
   pickDailySuggestions,
@@ -49,13 +50,13 @@ export function HomePage() {
       {catalogQuery.isSuccess && suggestions.length === 0 ? (
         <EmptyState title="No suggestions yet">
           <p>
-            Need at least one title scored {DAILY_SUGGESTION_MIN_SCORE}+ with an IMDb id.
+            Need at least one title scored {DAILY_SUGGESTION_MIN_SCORE}+ with a TMDB or IMDb id.
           </p>
         </EmptyState>
       ) : null}
       {suggestions.length > 0 ? (
         <LazyMovieGrid
-          key={suggestions.map((movie) => movie.imdbID).join(',')}
+          key={suggestions.map((movie) => catalogEntryKey(movie)).join(',')}
           entries={suggestions}
         />
       ) : null}
