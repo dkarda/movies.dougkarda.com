@@ -12,7 +12,7 @@ const BACK_LABELS: Record<string, string> = {
   '/ratings': 'Ratings',
   '/rankings': 'Rankings',
   '/stats': 'Stats',
-  '/watchlist': 'Watchlist',
+  '/watchlist': 'My Watchlist',
 }
 
 function backLink(from: unknown) {

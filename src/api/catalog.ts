@@ -1,5 +1,4 @@
-/** Live file is movies.json (the path without .json 404s). */
-export const PERSONAL_CATALOG_URL = 'https://assets.dougkarda.com/data/movies.json'
+export const PERSONAL_CATALOG_URL = '/data/movies.json'
 
 /** Cap TMDB lookups while catalog import is under test. Raise this after QA. */
 export const PERSONAL_MOVIE_LIMIT = 10000

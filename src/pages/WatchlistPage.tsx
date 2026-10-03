@@ -94,7 +94,7 @@ export function WatchlistPage() {
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Watchlist</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">My Watchlist</h1>
         <p className="mt-2 text-sm text-zinc-400">
           Titles in your catalog marked to watch.
         </p>

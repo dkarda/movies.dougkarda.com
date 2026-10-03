@@ -5,7 +5,7 @@ const links = [
   { to: '/ratings', label: 'Ratings' },
   { to: '/rankings', label: 'Rankings' },
   { to: '/stats', label: 'Stats' },
-  { to: '/watchlist', label: 'Watchlist' },
+  { to: '/watchlist', label: 'My Watchlist' },
   { to: '/browse', label: 'Browse' },
 ]
 
