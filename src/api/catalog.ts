@@ -117,6 +117,19 @@ export function matchesTextQuery(movie: PersonalMovie, query: string) {
   return haystack.includes(needle)
 }
 
+export function toplistSlug(name: string) {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function toplistBySlug<T extends { name: string }>(lists: T[], slug: string) {
+  return lists.find((list) => toplistSlug(list.name) === slug)
+}
+
 export function listRankFor(movie: PersonalMovie, listName: string) {
   const rank = movie.toplists?.find((item) => item.listName === listName)?.listRank
   return typeof rank === 'number' ? rank : undefined

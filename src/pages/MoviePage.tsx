@@ -10,7 +10,7 @@ const BACK_LABELS: Record<string, string> = {
   '/': 'Home',
   '/browse': 'Browse',
   '/ratings': 'Ratings',
-  '/rankings': 'Rankings',
+  '/lists': 'Top lists',
   '/stats': 'Stats',
   '/watchlist': 'My Watchlist',
 }
@@ -20,6 +20,9 @@ function backLink(from: unknown) {
   const pathname = path.split('?')[0]
   if (!pathname || pathname.startsWith('/movie/')) {
     return { to: '/', label: 'Home' }
+  }
+  if (pathname === '/lists' || pathname.startsWith('/lists/')) {
+    return { to: path, label: 'Top lists' }
   }
   return { to: path, label: BACK_LABELS[pathname] ?? 'Back' }
 }

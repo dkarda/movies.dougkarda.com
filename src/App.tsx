@@ -4,8 +4,8 @@ import { BrowsePage } from './pages/BrowsePage'
 import { HomePage } from './pages/HomePage'
 import { MoviePage } from './pages/MoviePage'
 import { RatingsPage } from './pages/RatingsPage'
-import { RankingsPage } from './pages/RankingsPage'
 import { StatsPage } from './pages/StatsPage'
+import { TopListsPage } from './pages/TopListsPage'
 import { WatchlistPage } from './pages/WatchlistPage'
 
 export default function App() {
@@ -16,7 +16,9 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="browse" element={<BrowsePage />} />
           <Route path="ratings" element={<RatingsPage />} />
-          <Route path="rankings" element={<RankingsPage />} />
+          <Route path="lists" element={<TopListsPage />} />
+          <Route path="lists/:slug" element={<TopListsPage />} />
+          <Route path="rankings" element={<Navigate to="/lists" replace />} />
           <Route path="stats" element={<StatsPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
           <Route path="movie/:id" element={<MoviePage />} />

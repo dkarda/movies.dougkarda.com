@@ -60,7 +60,6 @@ export function RatingsPage() {
       movies,
       filters.collection,
       filters.own,
-      filters.toplist,
       filters.year,
     ],
   )
@@ -137,31 +136,18 @@ export function RatingsPage() {
             onChange={(collection) => setFilters((current) => ({ ...current, collection }))}
             options={options.collections.map((value) => ({ value, label: value }))}
           />
-          <FilterSelect
-            label="Top list"
-            value={filters.toplist}
-            onChange={(toplist) => setFilters((current) => ({ ...current, toplist }))}
-            options={options.toplists.map((list) => ({
-              value: list.name,
-              label: `Top ${list.count} ${list.name}`,
-            }))}
-          />
           <label className="flex flex-col gap-1 text-xs text-zinc-400">
             Sort
             <select
-              value={filters.toplist ? 'list-rank' : filters.sort}
-              disabled={Boolean(filters.toplist)}
+              value={filters.sort}
               onChange={(event) =>
                 setFilters((current) => ({
                   ...current,
                   sort: event.target.value as CatalogFilters['sort'],
                 }))
               }
-              className={`${selectClass} disabled:opacity-50`}
+              className={selectClass}
             >
-              {filters.toplist ? (
-                <option value="list-rank">List rank high–low</option>
-              ) : null}
               <option value="title">Title A-Z</option>
               <option value="score-desc">Score high-low</option>
               <option value="score-asc">Score low-high</option>
@@ -207,10 +193,7 @@ export function RatingsPage() {
         </EmptyState>
       ) : null}
       {visible.length > 0 ? (
-        <LazyMovieGrid
-          entries={visible}
-          listName={filters.toplist || undefined}
-        />
+        <LazyMovieGrid entries={visible} />
       ) : null}
     </section>
   )
